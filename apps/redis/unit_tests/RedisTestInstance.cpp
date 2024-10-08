@@ -143,10 +143,14 @@ public:
             ac->onConnect(ac, REDIS_OK);
         } else {
             redisReply* reply;
-            Command cmd = q.front();
+            DBG(" >>>> q.size %d", q.size());
+            Command& cmd = q.front();
+            DBG(" >>>> 1");
             redisGetReply(&ac->c, (void**)&reply);
+            DBG(" >>>> 2");
             if(cmd.replyfn)
                 cmd.replyfn(ac, reply, cmd.privdata);
+            DBG(" >>>> 3");
             freeReplyObject(reply);
         }
         
@@ -175,6 +179,7 @@ public:
         current.privdata = privdata_;
         current.command = string(cmd, len);
         q.push(current);
+        DBG(" >>>> redisAsyncFormattedCommand q.push, size %d", q.size());
         return REDIS_OK;
     }
 
@@ -194,6 +199,7 @@ public:
 
         current.command = string(cmd, len);
         q.push(current);
+        DBG(" >>>> redisAsyncCommandArgv q.push, size %d", q.size());
         redisFreeSdsCommand(cmd);
         return REDIS_OK;
     }
@@ -214,6 +220,7 @@ public:
 
         current.command = string(cmd, len);
         q.push(current);
+        DBG(" >>>> redisvAsyncCommand q.push, size %d", q.size());
         redisFreeCommand(cmd);
         return REDIS_OK;
     }
@@ -227,6 +234,7 @@ public:
         redisvFormatCommand(&cmd, format, argptr);
         current.command = cmd;
         q.push(current);
+        DBG(" >>>> redisAppendCommand q.push, size %d", q.size());
         redisFreeCommand(cmd);
         return REDIS_OK;
     }
@@ -243,6 +251,7 @@ public:
         Amarg2redisReply(r, (redisReply**)reply);
         //INFO("redisGetReply type %d", (*(redisReply**)reply)->type);
         redisReply* _reply = (redisReply*)*reply;
+        DBG(" >>>> q.size %d before pop", q.size());
         if(server && server->getStatus(cmd.command) == REDIS_REPLY_STATUS && _reply->type == REDIS_REPLY_NIL) {
             q.pop();
             _reply->type = REDIS_REPLY_STATUS;
