@@ -141,6 +141,8 @@ public:
         if(!async_connected && ac->onConnect) {
             async_connected = true;
             ac->onConnect(ac, REDIS_OK);
+        } else if (q.empty()) {
+            DBG(" >>>> q is empty %d", q.size());
         } else {
             redisReply* reply;
             DBG(" >>>> q.size %d", q.size());
@@ -172,22 +174,21 @@ public:
 
     int redisAsyncFormattedCommand(redisAsyncContext *ac, redisCallbackFn *fn, void *privdata_, const char *cmd, size_t len) override
     {
-        if(ac->ev.addWrite)
-           ac->ev.addWrite(ac->ev.data);
         Command current;
         current.replyfn = fn;
         current.privdata = privdata_;
         current.command = string(cmd, len);
         q.push(current);
+
+        if(ac->ev.addWrite)
+           ac->ev.addWrite(ac->ev.data);
+
         DBG(" >>>> redisAsyncFormattedCommand q.push, size %d", q.size());
         return REDIS_OK;
     }
 
     int redisAsyncCommandArgv(redisAsyncContext *ac, redisCallbackFn *fn, void *privdata, int argc, const char **argv, const size_t *argvlen) override
     {
-        if(ac->ev.addWrite)
-           ac->ev.addWrite(ac->ev.data);
-
         Command current;
         sds cmd;
         long long len;
@@ -200,15 +201,16 @@ public:
         current.command = string(cmd, len);
         q.push(current);
         DBG(" >>>> redisAsyncCommandArgv q.push, size %d", q.size());
+
+        if(ac->ev.addWrite)
+           ac->ev.addWrite(ac->ev.data);
+
         redisFreeSdsCommand(cmd);
         return REDIS_OK;
     }
 
     int redisvAsyncCommand(redisAsyncContext *ac, redisCallbackFn *fn, void *privdata, const char* format, va_list argptr) override
     {
-        if(ac->ev.addWrite)
-           ac->ev.addWrite(ac->ev.data);
-
         Command current;
         current.replyfn = fn;
         current.privdata = privdata;
@@ -221,6 +223,10 @@ public:
         current.command = string(cmd, len);
         q.push(current);
         DBG(" >>>> redisvAsyncCommand q.push, size %d", q.size());
+
+        if(ac->ev.addWrite)
+           ac->ev.addWrite(ac->ev.data);
+
         redisFreeCommand(cmd);
         return REDIS_OK;
     }
@@ -242,6 +248,8 @@ public:
     int redisGetReply(redisContext* c, void ** reply) override
     {
         Command& cmd = q.front();
+
+        DBG(" >>>> cmd.command %s", cmd.command.c_str());
 
         AmArg r;
         if(server) {
